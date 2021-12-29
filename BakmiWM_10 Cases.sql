@@ -69,3 +69,57 @@ WHERE
 GROUP BY
 	st.SouvenirTranID, 
 	StaffName
+	
+--5
+SELECT DISTINCT
+	st.SouvenirTranID,
+	StaffName,
+	[SouvenirTransactionDate] = CONVERT(VARCHAR, SouvenirTranDate, 105),
+	[Salary] = 'Rp. ' + CAST(StaffSalary AS VARCHAR)
+FROM
+	SouvenirTransaction st
+	JOIN Staff s
+	ON st.StaffID = s.StaffID
+	JOIN SouvenirTranDetail std
+	ON st.SouvenirTranID = std.SouvenirTranID
+	JOIN Souvenir sv
+	ON std.SouvenirID = sv.SouvenirID,
+	(
+		SELECT
+			[Average] = AVG(StaffSalary)
+		FROM
+			Staff
+	) AS x
+WHERE BuyPrice > 10000 AND StaffSalary > x.Average
+GROUP BY
+	st.SouvenirTranID,
+	StaffName,
+	SouvenirTranDate,
+	StaffSalary
+
+--6
+SELECT
+	StaffName,
+	MenuName,
+	[MenuTransactionDate] = CONVERT(VARCHAR, MenuTranDate, 105),
+	[Staff Local Phone] = STUFF(StaffPhone, 1, 1, '+62')
+FROM
+	MenuTransaction mt
+	JOIN Staff s
+	ON mt.StaffID = s.StaffID
+	JOIN MenuTranDetail mtd
+	ON mt.MenuTranID = mtd.MenuTranID
+	JOIN Menu m
+	ON mtd.MenuID = m.MenuID,
+	(
+		SELECT
+			[Average] = AVG(SellPrice)
+		FROM
+			Souvenir
+	) AS y
+WHERE StaffGender = 'Female' AND MenuPrice > y.Average
+GROUP BY
+	StaffName,
+	MenuName,
+	MenuTranDate,
+	StaffPhone
