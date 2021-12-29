@@ -123,3 +123,36 @@ GROUP BY
 	MenuName,
 	MenuTranDate,
 	StaffPhone
+
+--8
+SELECT
+	[Staff Number] = REPLACE(s.StaffID, 'SF', 'Staff'),
+	StaffName,
+	positionName,
+	[Total Quantity] = CAST(SUM(Qty) AS VARCHAR)
+FROM
+	Staff s
+	JOIN Position p
+	ON s.PositionID = p.PositionID
+	JOIN MenuTransaction mt
+	ON s.StaffID = mt.StaffID
+	JOIN MenuTranDetail mtd
+	ON mt.MenuTranID = mtd.MenuTranID,
+	(
+		SELECT
+			[Minimum] = CAST(MIN(Qty) AS VARCHAR)
+		FROM
+			MenuTranDetail
+	) AS b,
+	(
+		SELECT
+			[Total Quantity] = CAST(SUM(Qty) AS VARCHAR)
+		FROM
+			MenuTranDetail
+	) AS c
+WHERE
+	[Total Quantity] <= b.Minimum AND DAY(MenuTranDate) BETWEEN 16 AND 25
+GROUP BY
+	s.StaffID,
+	StaffName,
+	positionName
