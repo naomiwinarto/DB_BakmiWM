@@ -71,7 +71,7 @@ GROUP BY
 	StaffName
 	
 --5
-SELECT DISTINCT
+SELECT
 	st.SouvenirTranID,
 	StaffName,
 	[SouvenirTransactionDate] = CONVERT(VARCHAR, SouvenirTranDate, 105),
@@ -124,12 +124,37 @@ GROUP BY
 	MenuTranDate,
 	StaffPhone
 
+--7
+SELECT
+	st.SouvenirTranID, 
+	[Capitalized Customer Name] = UPPER(CustomerName),
+	[Total Quantity] = CAST(SUM(Qty) AS VARCHAR) + ' pc(s)'
+FROM
+	Customer c 
+	JOIN SouvenirTransaction st
+	ON c.CustomerID = st.CustomerID
+	JOIN SouvenirTranDetail std
+	ON st.SouvenirTranID = std.SouvenirTranID,
+	(
+		SELECT 
+			[Max Quantity] = MAX(Qty)
+		FROM
+			SouvenirTranDetail
+	) AS a
+WHERE CAST((SUBSTRING(st.SouvenirTranID, 3, LEN(st.SouvenirTranID))) AS INT)%2 = 1
+GROUP BY
+	st.SouvenirTranID,
+	c.CustomerID,
+	CustomerName,
+	[Max Quantity]
+HAVING SUM(Qty) > a.[Max Quantity]
+
 --8
 SELECT
 	[Staff Number] = REPLACE(s.StaffID, 'SF', 'Staff'),
 	StaffName,
 	positionName,
-	[Total Quantity] = CAST(SUM(Qty) AS VARCHAR)
+	[Total Quantity] = SUM(Qty)
 FROM
 	Staff s
 	JOIN Position p
@@ -140,19 +165,68 @@ FROM
 	ON mt.MenuTranID = mtd.MenuTranID,
 	(
 		SELECT
-			[Minimum] = CAST(MIN(Qty) AS VARCHAR)
+			[Minimum] = MIN(Qty)
 		FROM
-			MenuTranDetail
+			MenuTransaction mt JOIN MenuTranDetail mtd 
+			ON mt.MenuTranID = mtd.MenuTranID
+		WHERE
+			DAY(MenuTranDate) BETWEEN 16 AND 25
 	) AS b,
 	(
 		SELECT
-			[Total Quantity] = CAST(SUM(Qty) AS VARCHAR)
+			[Total Quantity] = SUM(Qty)
 		FROM
 			MenuTranDetail
 	) AS c
-WHERE
-	[Total Quantity] <= b.Minimum AND DAY(MenuTranDate) BETWEEN 16 AND 25
 GROUP BY
 	s.StaffID,
 	StaffName,
-	positionName
+	positionName,
+	Minimum
+HAVING
+	SUM(Qty) <= b.Minimum
+
+--9
+CREATE VIEW CustomerMenuPurchaseViewer AS
+SELECT
+	c.CustomerID,
+	CustomerName,
+	CustomerEmail,
+	[Maximum Quantity] = MAX(Qty),
+	[Minimum Quantity] = MIN(Qty)
+FROM
+	Customer c
+	JOIN MenuTransaction mt
+	ON c.CustomerID = mt.CustomerID
+	JOIN MenuTranDetail mtd
+	ON mt.MenuTranID = mtd.MenuTranID 
+WHERE CAST((SUBSTRING(c.CustomerID, 3, LEN(c.CustomerID))) AS INT)%2 = 0
+GROUP BY
+	c.CustomerID,
+	CustomerName,
+	CustomerEmail
+HAVING
+	MAX(Qty) != MIN(Qty)
+
+--10
+CREATE VIEW StaffSouvenirSellingViewer AS
+SELECT
+	s.StaffID,
+	StaffName,
+	StaffAddress,
+	[Total Price] = SUM(Qty*SellPrice)
+FROM
+	Staff s
+	JOIN SouvenirTransaction st
+	ON s.StaffID = st.StaffID
+	JOIN SouvenirTranDetail std
+	ON st.SouvenirTranID = std.SouvenirTranID
+	JOIN Souvenir sv
+	ON std.SouvenirID = sv.SouvenirID
+WHERE LEN(StaffAddress) - LEN(REPLACE(StaffAddress,' ', '')) > 1
+GROUP BY
+	s.StaffID,
+	StaffName,
+	StaffAddress
+HAVING 
+	MIN(Qty) > 5
